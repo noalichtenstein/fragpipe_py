@@ -6,12 +6,13 @@ import sys
 import matplotlib.pyplot as plt
 import math
 from scipy.stats import entropy
+import seaborn as sns
 
 INPUT_NUMBER = 4
 DNA_ROW = 1
-DNA_PATH_PRENATAL_1 = r"C:\Users\owner\Microbiome\resources\DNA_seq_results\Prenatal_1_DNA.xlsx"
-DNA_PATH_PRENATAL_2 = r"C:\Users\owner\Microbiome\resources\DNA_seq_results\Prenatal_2_DNA.xlsx"
-DNA_PATH_PRENATAL_3 = r"C:\Users\owner\Microbiome\resources\DNA_seq_results\Prenatal_3_DNA_Summary.xlsx"
+DNA_PATH_PRENATAL_1 = r"C:\Users\noa\Desktop\University\Year_3\semester_B\project\DNA_seq_results\Prenatal_1_DNA.xlsx"
+DNA_PATH_PRENATAL_2 = r"C:\Users\noa\Desktop\University\Year_3\semester_B\project\DNA_seq_results\Prenatal_2_DNA.xlsx"
+DNA_PATH_PRENATAL_3 = r"C:\Users\noa\Desktop\University\Year_3\semester_B\project\DNA_seq_results\Prenatal_3_DNA.xlsx"
 DNA_THRESHOLD = 0
 
 
@@ -68,17 +69,19 @@ def compare_distributions(bacteria, bacteria_intensities, results_folder, raw, c
     # print(mass_vector)
 
 
-def binary_classification(bacteria, bacteria_intensities, results_folder, raw, cutoff):
+def binary_classification(bacteria, bacteria_intensities, results_folder, raw, cutoff, dna_threshold):
     dna_array = np.zeros(len(bacteria))
     sample_number = raw[raw.find('Sample') + 6]
     prenatal_num = int(raw[raw.find('Natal') + 5])
     dna_array = read_dna_result(bacteria, dna_array, sample_number, prenatal_num, cutoff)
     mass_array = np.array(bacteria_intensities)
 
-    return create_binary_excel_table(bacteria, mass_array, dna_array, raw, sample_number, results_folder, cutoff)
+    return create_binary_excel_table(bacteria, mass_array, dna_array, raw, sample_number, results_folder, cutoff,
+                                     dna_threshold)
 
 
-def create_binary_excel_table(bacteria, mass_array, dna_array, raw_name, sample_number, results_folder, cutoff_level):
+def create_binary_excel_table(bacteria, mass_array, dna_array, raw_name, sample_number, results_folder, cutoff_level,
+                              dna_threshold=DNA_THRESHOLD):
     # Ensure mass_array and dna_array are converted to DataFrame/Series if necessary
     mass_series = pd.Series(mass_array, index=bacteria)
     dna_series = pd.Series(dna_array, index=bacteria)
@@ -91,7 +94,7 @@ def create_binary_excel_table(bacteria, mass_array, dna_array, raw_name, sample_
 
     # Convert identifications to binary
     df['mass spectrometry identifications'] = (df['mass spectrometry identifications'] > 0).astype(int)
-    df['dna identifications'] = (df['dna identifications'] > DNA_THRESHOLD).astype(int)
+    df['dna identifications'] = (df['dna identifications'] > dna_threshold).astype(int)
 
     # Save to Excel
     output_filename = f"{raw_name}_{sample_number}_binary.xlsx"
@@ -119,3 +122,21 @@ def create_binary_excel_table(bacteria, mass_array, dna_array, raw_name, sample_
     # print(f"accuracy: {accuracy}")
     # print(f"precision: {precision}")
     # print(f"sensitivity: {sensitivity}")
+
+
+def create_heat_map(sensitivity_array, all_proteomes_folder):
+    """
+    creates a heat map of sensitivity to compare between different thresholds of DNA and MS
+    """
+    plt.figure(figsize=(12, 8))
+    x_values = [round(i/3, 2) for i in range(10)]
+    sns.heatmap(sensitivity_array, cmap='hot', xticklabels=x_values, yticklabels=range(10))
+    plt.title(f'Sensitivity Heatmap')
+    plt.xlabel('DNA Threshold')
+    plt.ylabel('MS Threshold')
+
+    # Save the figure
+    output_path = os.path.join(all_proteomes_folder, f'sensitivity_heatmap.png')
+    plt.savefig(output_path)
+    plt.close()
+
