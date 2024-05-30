@@ -1,0 +1,20 @@
+input format:
+requires the files:
+"combined_proteome.fasta" (including human's top 100 proteins)
+"proteins_per_bacteria.txt"
+raw files
+cutoff_level:
+species/genus/family/order/class/phylum
+
+input format:
+directory raw_file_list(format: 'raw1','raw2','raw3'...) organisms_list(format example:
+             'Actinomyces+naeslundii','Actinomyces+oris','Corynebacterium+amycolatum'...
+
+
+
+
+sample:
+"C:\Users\owner\Microbiome\MS_Fragger\fragpipe" "C:\Users\owner\Microbiome\Analyses\S2_run" "2022_05_09_03_PreNatal3_Sample4_S2_p2","2022_05_09_05_PreNatal3_Sample3_S2_p2","2022_05_09_07_PreNatal3_Sample2_S2_p2","2022_05_09_09_PreNatal3_Sample1_S2_p2","2021_12_27_03_PreNatal1_Sample1_S2_p2","2021_12_27_05_PreNatal1_Sample2_S2_p2","2021_12_27_07_PreNatal1_Sample3_S2_p2","2021_12_27_09_PreNatal2_Sample1_S2_p2","2021_12_27_11_PreNatal2_Sample2_S2_p2","2021_12_27_13_PreNatal2_Sample3_S2_p2","2022_05_09_01_PreNatal3_Sample5_S2_p2" "Staphylococcus+haemolyticus","Klebsiella+quasipneumoniae","Raoultella+ornithinolytica","Raoultella+planticola","Serratia+marcescens","Acinetobacter+johnsonii","Streptococcus+gordonii","Klebsiella+variicola","Proteus+hauseri","Pseudomonas+aeruginosa_group",'Actinomyces+naeslundii','Actinomyces+oris','Corynebacterium+amycolatum','Corynebacterium+striatum','Dermabacter+hominis','Rothia+mucilaginosa','Cutibacterium+avidum','Gemella+haemolysans','Staphylococcus+epidermidis','Staphylococcus+hominis','Enterococcus+faecalis','Lactobacillus+rhamnosus','Streptococcus+infantis','Streptococcus+salivarius','Clostridium+perfringens','Negativicoccus+succinicivorans','Veillonella+atypica','Veillonella+parvula','Finegoldia+magna','Citrobacter+braakii','Citrobacter+youngae','Enterobacter+cloacae_complex','Klebsiella+aerogenes','Klebsiella+michiganensis','Klebsiella+oxytoca','Klebsiella+pneumoniae','Kluyvera+ascorbata','Proteus+mirabilis','Escherichia+coli'
+species
+combined_proteome
+false
