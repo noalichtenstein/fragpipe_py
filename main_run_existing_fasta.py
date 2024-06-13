@@ -9,10 +9,11 @@ from Bacteria import Bacteria
 from bs4 import BeautifulSoup
 import sys
 import matplotlib.pyplot as plt
-from comparing_distributions import compare_distributions, binary_classification, create_heat_map
+from comparing_distributions import compare_distributions, binary_classification
 
 INPUT_NUMBER = 8
-MS_THRESHOLD = 5
+THRESHOLD = 0
+PEARSON = False
 
 
 def download_html(url, output_file):
@@ -67,6 +68,7 @@ def convert_file_to_list(folder, organism_name):
         while line:
             fasta_list.append(line.strip())
             line = file.readline()
+
 
         file.close()
     return fasta_list
@@ -287,8 +289,7 @@ def convert_file_to_unique_protein_dictionary(results_folder, raw_list, cutoff_p
                     mapped_proteins_as_list = mapped_proteins_array[i].split(',')
                     for mapped_protein in mapped_proteins_as_list:
                         # if are_mapped_proteins_contaminant == True protein is unique
-                        are_mapped_proteins_contaminant = are_mapped_proteins_contaminant and mapped_protein.split('_')[
-                            0].strip() != "bacteria"
+                        are_mapped_proteins_contaminant = are_mapped_proteins_contaminant and mapped_protein.split('_')[0].strip() != "bacteria"
 
                 if are_mapped_proteins_contaminant:
                     for bacteria in bacteria_list:
@@ -458,7 +459,7 @@ def calculate_distribution_above_threshold(unique_peptides_dictionary, results_f
     bacteria = unique_peptides_dictionary.keys()
     bacteria_intensities = []
     for bac in bacteria:
-        if len(unique_peptides_dictionary[bac]) > MS_THRESHOLD:
+        if len(unique_peptides_dictionary[bac]) > THRESHOLD:
             intensities_sum = 0
             for peptide in unique_peptides_dictionary[bac]:
                 index = df[df['Peptide'] == peptide].index
@@ -468,31 +469,26 @@ def calculate_distribution_above_threshold(unique_peptides_dictionary, results_f
         else:
             bacteria_intensities.append(0)
 
-    # create_cake_plot_intensities(bacteria, bacteria_intensities, results_folder, raw)
+    create_cake_plot_intensities(bacteria, bacteria_intensities, results_folder, raw)
     compare_distributions(bacteria, bacteria_intensities, results_folder, raw, cutoff)
 
 
-def calculate_distribution_intensity_median(unique_peptides_dictionary, results_folder, raw, cutoff, create_cake,
-                                            ms_threshold=MS_THRESHOLD, dna_threshold=0):
-    """
-        for bacteria with unique number of peptides larger than threshold:
-         calculate distribution according to intensity median per protein
-    """
+def get_bacteria_intensities_median_list(unique_peptides_dictionary, results_folder, raw, cutoff, create_cake):
     df = pd.read_csv(f"{results_folder}\\{raw}\\peptide.tsv", sep="\t")
     bacteria = list(unique_peptides_dictionary.keys())
     bacteria_intensities = []
     for bac in bacteria:
         dict_protein_intensity = {}
-        if len(unique_peptides_dictionary[bac]) > ms_threshold:  # number of unique peptides is above the chosen threshold
+        if len(unique_peptides_dictionary[bac]) > THRESHOLD:  # number of unique peptides is above the chosen threshold
             for peptide in unique_peptides_dictionary[bac]:
                 index = df[df['Peptide'] == peptide].index
                 if not index.empty:
                     protein = df.loc[index, 'Protein'].iloc[0]
                     if protein in dict_protein_intensity.keys():
                         dict_protein_intensity[protein] = np.append(dict_protein_intensity[protein],
-                                                                    df.loc[index, 'Intensity'].sum())
+                                                                    df.loc[index, 'Intensity'].sum()) # .sum() for extracting value from tuple
                     else:
-                        dict_protein_intensity[protein] = np.array(df.loc[index, 'Intensity'].sum())
+                        dict_protein_intensity[protein] = np.array(df.loc[index, 'Intensity'].sum()) # .sum() for extracting value from tuple
 
             list_of_medians = np.zeros(0)
             for prot in dict_protein_intensity.keys():
@@ -501,19 +497,29 @@ def calculate_distribution_intensity_median(unique_peptides_dictionary, results_
 
             # sum_list_of_medians = np.sum(list_of_medians)
             # bacteria_intensities.append(sum_list_of_medians)
-
             # mean
             proteins_mean = np.mean(list_of_medians)
             bacteria_intensities.append(proteins_mean)
 
         else:
             bacteria_intensities.append(0)
+    return bacteria_intensities
 
+
+def calculate_distribution_intensity_median(unique_peptides_dictionary, results_folder, raw, cutoff, create_cake):
+    """
+        for bacteria with unique number of peptides larger than threshold:
+         calculate distribution according to intensity median per protein
+    """
+    df = pd.read_csv(f"{results_folder}\\{raw}\\peptide.tsv", sep="\t")
+    bacteria = list(unique_peptides_dictionary.keys())
+    bacteria_intensities = get_bacteria_intensities_median_list(unique_peptides_dictionary, results_folder, raw, cutoff,
+                                                                create_cake)
     if create_cake:
         create_cake_plot_intensities(bacteria, bacteria_intensities, results_folder, raw)
 
     # compare_distributions(bacteria, bacteria_intensities, results_folder, raw, cutoff)
-    return binary_classification(bacteria, bacteria_intensities, results_folder, raw, cutoff, dna_threshold)
+    return binary_classification(bacteria, bacteria_intensities, results_folder, raw, cutoff)
 
 
 def create_cake_plot_intensities(bacteria, bacteria_intensities, results_folder, raw):
@@ -536,7 +542,7 @@ def create_cake_plot_intensities(bacteria, bacteria_intensities, results_folder,
 
     # Title for the pie chart
     plt.title(f'Bacteria Intensity Distribution {raw[14:-3]}', fontsize=20, y=1.05)
-    plt.savefig(fr"{results_folder}\{raw}_cake_plt_intensities.png", format='png', dpi=300)
+    plt.savefig(fr"{results_folder}\{raw}_cake_plt_intensities_MS_threshold_{THRESHOLD}.png", format='png', dpi=300)
     plt.show()
 
 
@@ -557,48 +563,40 @@ def sort_peptides(all_proteomes_folder, organisms, raw_list, cutoff_level):
                                                                                 proteins_dictionary_cutoff,
                                                                                 bacteria_list, cutoff_level)
     # creates not unique excel for each raw
-    bacteria_peptides_dict_list = proteins_from_bacteria_as_peptides(raw_list, all_proteomes_folder,
-                                                                     proteins_dictionary_cutoff)
+    # bacteria_peptides_dict_list = proteins_from_bacteria_as_peptides(raw_list, all_proteomes_folder,
+    #                                                                  proteins_dictionary_cutoff)
 
-    sensitivity_array = np.zeros((10, 10))
-    for ms_threshold in range(10):
-        for j in range(10):
-            dna_threshold = j / 3
-            sum_TP, sum_FN, sum_FP, sum_TN = 0, 0, 0, 0
-            #  creates excel table of unique proteins for each raw
-            for i, raw_name in enumerate(raw_list):
-                # create_excel_table(unique_peptides_dictionary_list[i], raw_name, all_proteomes_folder, "unique", cutoff_level)
-                # calculate_distribution(unique_peptides_dictionary_list[i], all_proteomes_folder, raw_name)
-                # # intensity sum calculation
+    sum_TP, sum_FN, sum_FP, sum_TN = 0, 0, 0, 0
+    #  creates excel table of unique proteins for each raw
+    for i, raw_name in enumerate(raw_list):
+        # todo: choose functionality
+        # create_excel_table(unique_peptides_dictionary_list[i], raw_name, all_proteomes_folder, "unique", cutoff_level)
+        # calculate_distribution(unique_peptides_dictionary_list[i], all_proteomes_folder, raw_name)
+        # # intensity sum calculation
 
-                # # this function calculate kl_divergence
-                # calculate_distribution_above_threshold(unique_peptides_dictionary_list[i], all_proteomes_folder, raw_name,
-                #                                        cutoff_level)
+        # # add for binary classification
+        # calculate_distribution_above_threshold(unique_peptides_dictionary_list[i], all_proteomes_folder, raw_name, cutoff_level)
 
-                TP, FN, FP, TN = calculate_distribution_intensity_median(unique_peptides_dictionary_list[i],
-                                                                         all_proteomes_folder, raw_name, cutoff_level,
-                                                                         False, ms_threshold, dna_threshold)
-                sum_TP += TP
-                sum_FN += FN
-                sum_FP += FP
-                sum_TN += TN
+        TP, FN, FP, TN = calculate_distribution_intensity_median(unique_peptides_dictionary_list[i],
+                                                                 all_proteomes_folder, raw_name, cutoff_level,
+                                                                 create_cake=True)
+        sum_TP += TP
+        sum_FN += FN
+        sum_FP += FP
+        sum_TN += TN
 
-            # accuracy = (sum_TP + sum_TN) / (sum_TP + sum_TN + sum_FP + sum_TN)
-            # precision = sum_TP / (sum_TP + sum_FP)
-            sensitivity = sum_TP / (sum_TP + sum_FN)
-            sensitivity_array[ms_threshold, j] = sensitivity
-            print("ms_threshold:", ms_threshold, "dna_threshold:", dna_threshold, "sensitivity:", sensitivity)
-
-    create_heat_map(sensitivity_array, all_proteomes_folder)
+    accuracy = (sum_TP + sum_TN) / (sum_TP + sum_TN + sum_FP + sum_TN)
+    precision = sum_TP / (sum_TP + sum_FP)
+    sensitivity = sum_TP / (sum_TP + sum_FN)
 
     # Print the counts
-    # print(f"True Positives: {sum_TP}")
-    # print(f"False Negatives: {sum_FN}")
-    # print(f"False Positives: {sum_FP}")
-    # print(f"True Negatives: {sum_TN}")
-    # print(f"accuracy: {accuracy}")
-    # print(f"precision: {precision}")
-    print(f"sensitivity: {sensitivity_array}")
+    print(f"True Positives: {sum_TP}")
+    print(f"False Negatives: {sum_FN}")
+    print(f"False Positives: {sum_FP}")
+    print(f"True Negatives: {sum_TN}")
+    print(f"accuracy: {accuracy}")
+    print(f"precision: {precision}")
+    print(f"sensitivity: {sensitivity}")
 
     # lengths_unique_dict = create_lengths_dicts(unique_peptides_dictionary_list)
     # lengths_dict = create_lengths_dicts(bacteria_peptides_dict_list)
